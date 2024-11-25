@@ -1,4 +1,4 @@
-const Button = ({ children, theme, className, href }) => {
+const Button = ({ children, theme, className, href, onClick }) => {
   const baseClasse = "text-white hover:text-white";
   const themeClasses =
     theme === "primary"
@@ -10,6 +10,7 @@ const Button = ({ children, theme, className, href }) => {
   const renderButton = () => {
     return (
       <button
+        onClick={onClick}
         className={`button py-3 px-3 lg:py-4 lg:px-6 rounded-lg ${className} ${themeClasses} ${baseClasse}`}
       >
         {children}
