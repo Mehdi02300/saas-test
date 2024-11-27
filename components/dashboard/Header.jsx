@@ -18,9 +18,13 @@ const Header = () => {
   const closeModal = () => setIsModalOpen(false);
 
   return (
-    <div className="flex justify-between items-center p-5 lg:px-10">
+    <div className="flex justify-between items-center pl-5 lg:px-10">
       <div className="h2">Tableau de bord</div>
-      <Button theme="primary" className="flex gap-1 lg:gap-3" onClick={openModal}>
+      <Button
+        theme="primary"
+        className="flex flex-col md:flex-row items-center justify-center gap-1 lg:gap-3"
+        onClick={openModal}
+      >
         <PlusIcon /> Nouvel abonnement
       </Button>
 

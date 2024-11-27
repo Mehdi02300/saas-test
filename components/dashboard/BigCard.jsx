@@ -1,69 +1,95 @@
 "use client";
-
 import React, { useEffect, useState } from "react";
-import { collection, getDocs } from "firebase/firestore";
 import Graphic from "./Graphic";
-import { db } from "@/firebase/firebaseConfig";
+import { auth, db } from "@/lib/firebaseConfig";
+import { onAuthStateChanged } from "firebase/auth";
+import { collection, getDocs, orderBy, query, where } from "firebase/firestore";
 
 const BigCard = () => {
   const [subscriptions, setSubscriptions] = useState([]);
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    const fetchSubscriptions = async () => {
+    const fetchSubscriptions = async (user) => {
       try {
-        const querySnapshot = await getDocs(collection(db, "subscriptions"));
-        const subscriptionsArray = querySnapshot.docs.map((doc) => ({
-          id: doc.id,
-          ...doc.data(),
-        }));
+        console.log("Récupération pour user:", user.uid);
 
-        // Trier les abonnements par date d'échéance croissante
-        const sortedSubscriptions = subscriptionsArray
-          .filter((subscription) => subscription.dueDate) // Filtrer ceux qui ont une dueDate
-          .sort((a, b) => a.dueDate.seconds - b.dueDate.seconds); // Trier par dueDate
+        // Requête Firestore
+        const q = query(
+          collection(db, "subscriptions"),
+          where("userId", "==", user.uid),
+          orderBy("dueDate", "asc")
+        );
 
-        // Filtrer les 3 prochains abonnements dont la dueDate est dans les 30 prochains jours
+        const querySnapshot = await getDocs(q);
+        console.log("Docs trouvés:", querySnapshot.size);
+
+        const allSubs = querySnapshot.docs.map((doc) => {
+          const data = doc.data();
+          console.log("Document data:", doc.id, data);
+          return {
+            id: doc.id,
+            ...data,
+          };
+        });
+
+        // Filtre pour les 30 prochains jours
         const currentDate = new Date();
-        const next30Days = new Date(currentDate);
-        next30Days.setDate(currentDate.getDate() + 30);
+        console.log("Date actuelle:", currentDate);
 
-        const upcomingSubscriptions = sortedSubscriptions
-          .filter((subscription) => {
-            const expirationDate = new Date(subscription.dueDate.seconds * 1000);
-            return expirationDate >= currentDate && expirationDate <= next30Days;
+        const next30Days = new Date();
+        next30Days.setDate(next30Days.getDate() + 30);
+        console.log("Date limite:", next30Days);
+
+        const filtered = allSubs
+          .filter((sub) => {
+            // Convertir la string ISO en Date
+            const dueDate = new Date(sub.dueDate);
+            console.log("Date d'échéance pour", sub.serviceName, ":", dueDate);
+            return dueDate >= currentDate && dueDate <= next30Days;
           })
-          .slice(0, 3); // Prendre seulement les 3 premiers
+          .sort((a, b) => new Date(a.dueDate) - new Date(b.dueDate))
+          .slice(0, 3);
 
-        setSubscriptions(upcomingSubscriptions);
+        console.log("Abonnements filtrés:", filtered);
+        setSubscriptions(filtered);
       } catch (error) {
-        console.error("Error fetching subscriptions:", error);
+        console.error("Erreur complète:", error);
       } finally {
         setLoading(false);
       }
     };
 
-    fetchSubscriptions();
+    const unsubscribe = onAuthStateChanged(auth, (user) => {
+      if (user) {
+        fetchSubscriptions(user);
+      } else {
+        setLoading(false);
+      }
+    });
+
+    return () => unsubscribe();
   }, []);
 
-  const getStatus = (dueDate) => {
-    if (!dueDate) return "À renouveler"; // Si la date est undefined, retourner "À renouveler"
-
-    const currentDate = new Date();
-    const expirationDate = new Date(dueDate);
-    return expirationDate > currentDate ? "Actif" : "À renouveler";
-  };
-
   if (loading) {
-    return <p>Chargement des abonnements...</p>;
+    return (
+      <div className="flex flex-col xl:flex-row gap-4 lg:gap-8 ml-5 lg:mx-10">
+        <div className="xl:w-1/2 p-5 lg:py-10 bg-n-7 rounded-xl h-[500px] flex items-center justify-center">
+          <p>Chargement des données...</p>
+        </div>
+        <div className="xl:w-1/2 flex flex-col p-5 items-center justify-center lg:p-10 bg-n-7 rounded-xl h-[500px]">
+          <p>Chargement des données...</p>
+        </div>
+      </div>
+    );
   }
 
   return (
-    <div className="flex flex-col lg:flex-row gap-4 lg:gap-8 mx-5 lg:mx-10">
-      <div className="lg:w-1/2">
+    <div className="flex flex-col xl:flex-row gap-4 lg:gap-8 ml-5 lg:mx-10">
+      <div className="xl:w-1/2">
         <Graphic />
       </div>
-      <div className="lg:w-1/2 flex flex-col p-5 lg:p-10 bg-n-7 rounded-xl h-[500px]">
+      <div className="xl:w-1/2 flex flex-col p-5 lg:p-10 bg-n-7 rounded-xl h-[500px]">
         <div className="flex flex-col">
           <h2 className="h4">Prochains renouvellements</h2>
           <p className="body-2 text-n-3">Abonnements à renouveler dans les 30 prochains jours</p>
@@ -77,24 +103,18 @@ const BigCard = () => {
                 <div className="flex flex-col justify-between">
                   <div className="flex justify-between">
                     <span className="h5">{subscription.serviceName}</span>
-                    <span className="h5">{subscription.cost} €</span>
+                    <span className="h5">{subscription.cost.toFixed(2)} €</span>
                   </div>
                   <div className="flex justify-between">
                     <span className="body-2 text-n-3">
-                      {subscription.dueDate
-                        ? `Échéance : ${new Date(
-                            subscription.dueDate.seconds * 1000
-                          ).toLocaleDateString()}`
-                        : "Échéance inconnue"}
+                      {`Échéance : ${new Date(subscription.dueDate).toLocaleDateString()}`}
                     </span>
                     <span
                       className={`body-2 ${
-                        getStatus(subscription.dueDate?.seconds * 1000) === "Actif"
-                          ? "text-green-500"
-                          : "text-orange-500"
+                        subscription.isActive ? "text-green-500" : "text-orange-500"
                       }`}
                     >
-                      {getStatus(subscription.dueDate?.seconds * 1000)}
+                      {subscription.isActive ? "Actif" : "Inactif"}
                     </span>
                   </div>
                 </div>

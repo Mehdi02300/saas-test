@@ -1,5 +1,5 @@
 const Container = ({ children, className }) => {
-  return <div className={`max-w-screen-2xl mx-auto px-5 lg:px-15 ${className}`}>{children}</div>;
+  return <div className={`max-w-[1250px] mx-auto px-3 py-3 lg:px-15 ${className}`}>{children}</div>;
 };
 
 export default Container;

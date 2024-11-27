@@ -1,9 +1,10 @@
 "use client";
 
 import React, { useEffect, useState } from "react";
-import { collection, getDocs } from "firebase/firestore";
-import { db } from "@/firebase/firebaseConfig";
+import { collection, getDocs, query, where } from "firebase/firestore";
+import { db, auth } from "@/lib/firebaseConfig";
 import { CreditCardIcon, EuroIcon } from "lucide-react";
+import { onAuthStateChanged } from "firebase/auth";
 
 const LittleCard = () => {
   const [subscriptions, setSubscriptions] = useState([]);
@@ -15,144 +16,141 @@ const LittleCard = () => {
   const [renewalsComing, setRenewalsComing] = useState(0);
 
   useEffect(() => {
-    const fetchSubscriptions = async () => {
+    const fetchSubscriptions = async (user) => {
       try {
-        const querySnapshot = await getDocs(collection(db, "subscriptions"));
+        if (!user) {
+          throw new Error("Utilisateur non connecté");
+        }
+
+        const q = query(collection(db, "subscriptions"), where("userId", "==", user.uid));
+
+        const querySnapshot = await getDocs(q);
         const subscriptionsArray = querySnapshot.docs.map((doc) => ({
           id: doc.id,
           ...doc.data(),
         }));
 
-        setSubscriptions(subscriptionsArray);
+        console.log("Subscriptions trouvées:", subscriptionsArray);
 
         let currentMonthExpenses = 0;
         let lastMonthExpenses = 0;
         let activeCount = 0;
-        let potentialSavingsAmount = 0;
         let renewalsCount = 0;
 
         const currentDate = new Date();
         const currentMonth = currentDate.getMonth();
         const currentYear = currentDate.getFullYear();
 
-        const lastMonthDate = new Date();
-        lastMonthDate.setMonth(lastMonthDate.getMonth() - 1);
-        const lastMonth = lastMonthDate.getMonth();
-        const lastMonthYear = lastMonthDate.getFullYear();
-
         const fifteenDaysFromNow = new Date();
         fifteenDaysFromNow.setDate(fifteenDaysFromNow.getDate() + 15);
 
         subscriptionsArray.forEach((subscription) => {
-          const dueDate = new Date(subscription.dueDate?.seconds * 1000);
-          const cost = subscription.cost || 0;
-          const frequency = subscription.frequency || "monthly"; // Par défaut, mensuel
-          const isActive = dueDate > currentDate; // Si la date d'échéance est dans le futur, l'abonnement est actif.
+          const dueDate = new Date(subscription.dueDate);
+          const cost = parseFloat(subscription.cost) || 0;
+          const frequency = subscription.frequency || "monthly";
+          const isActive = dueDate > currentDate;
 
-          // Calcul du coût mensuel basé sur la fréquence
-          const monthlyCost =
-            frequency === "yearly"
-              ? cost / 12 // Diviser le coût annuel par 12 pour obtenir le coût mensuel
-              : frequency === "quarterly"
-              ? cost / 3 // Diviser le coût trimestriel par 3 pour obtenir le coût mensuel
-              : frequency === "weekly"
-              ? cost / 4 // Diviser le coût hebdomadaire par 4 pour obtenir le coût mensuel
-              : cost; // Par défaut, pour un abonnement mensuel, on prend le coût directement.
-
-          // Console log pour déboguer
-          console.log({
-            id: subscription.id,
-            frequency,
+          console.log("Analyse abonnement:", {
+            serviceName: subscription.serviceName,
+            cost,
             dueDate,
             isActive,
-            monthlyCost,
-            includedInMonthlyExpenses:
-              (frequency === "monthly" &&
-                dueDate.getMonth() === currentMonth &&
-                dueDate.getFullYear() === currentYear) ||
-              (frequency !== "monthly" && isActive),
           });
 
-          // Vérification des abonnements mensuels : pris en compte si leur date d'échéance est dans le mois en cours et actifs
-          if (
-            isActive &&
-            frequency === "monthly" &&
-            dueDate.getMonth() === currentMonth &&
-            dueDate.getFullYear() === currentYear
-          ) {
-            currentMonthExpenses += cost; // Coût complet pour les abonnements mensuels
-          }
+          const monthlyCost =
+            frequency === "yearly"
+              ? cost / 12
+              : frequency === "quarterly"
+              ? cost / 3
+              : frequency === "weekly"
+              ? cost * 4
+              : cost;
 
-          // Vérification des abonnements non mensuels (annuels, trimestriels, etc.) : pris en compte tant qu'ils sont actifs
-          if (isActive && frequency !== "monthly") {
-            currentMonthExpenses += monthlyCost; // Ajouter le coût mensuel estimé pour les autres fréquences
-          }
-
-          // Comptabilisation des abonnements actifs (quel que soit le type)
           if (isActive) {
-            activeCount++; // Incrémenter le nombre d'abonnements actifs
+            if (
+              frequency === "monthly" &&
+              dueDate.getMonth() === currentMonth &&
+              dueDate.getFullYear() === currentYear
+            ) {
+              currentMonthExpenses += cost;
+            } else if (frequency !== "monthly") {
+              currentMonthExpenses += monthlyCost;
+            }
+            activeCount++;
           }
 
-          // Renouvellements à venir : dans les 15 jours
           if (dueDate >= currentDate && dueDate <= fifteenDaysFromNow) {
             renewalsCount++;
           }
         });
 
-        let percentageChangeValue = 0;
-        if (lastMonthExpenses > 0) {
-          percentageChangeValue =
-            ((currentMonthExpenses - lastMonthExpenses) / lastMonthExpenses) * 100;
-        }
+        console.log("Statistiques calculées:", {
+          currentMonthExpenses,
+          activeCount,
+          renewalsCount,
+        });
 
-        setPercentageChange(percentageChangeValue.toFixed(2));
         setTotalExpenses(currentMonthExpenses);
         setActiveSubscriptions(activeCount);
-        setPotentialSavings(potentialSavingsAmount);
+        setPotentialSavings(0);
         setRenewalsComing(renewalsCount);
+        setSubscriptions(subscriptionsArray);
       } catch (error) {
-        console.error("Erreur lors de la récupération des abonnements :", error);
+        console.error("Erreur détaillée:", error);
+        setTotalExpenses(0);
+        setActiveSubscriptions(0);
+        setPotentialSavings(0);
+        setPercentageChange(0);
+        setRenewalsComing(0);
       } finally {
         setLoading(false);
       }
     };
 
-    fetchSubscriptions();
+    // Écouter les changements d'état d'authentification
+    const unsubscribe = onAuthStateChanged(auth, (user) => {
+      if (user) {
+        console.log("Utilisateur authentifié:", user.uid);
+        fetchSubscriptions(user);
+      } else {
+        console.log("Aucun utilisateur connecté");
+        setLoading(false);
+      }
+    });
+
+    // Nettoyer l'écouteur lors du démontage du composant
+    return () => unsubscribe();
   }, []);
-
-  if (loading) {
-    return <p>Chargement des données...</p>;
-  }
-
-  if (subscriptions.length === 0) {
-    return <p>Aucun abonnement trouvé.</p>;
-  }
 
   const cards = [
     {
       title: "Dépenses mensuelles",
       icon: <EuroIcon />,
-      number: `${totalExpenses.toFixed(2)} €`,
-      description: `${
-        percentageChange >= 0 ? "+" : ""
-      }${percentageChange}% par rapport au mois dernier`,
+      number: loading ? "..." : `${totalExpenses.toFixed(2)} €`,
+      description: loading
+        ? "Chargement..."
+        : `${percentageChange >= 0 ? "+" : ""}${percentageChange}% par rapport au mois dernier`,
     },
     {
       title: "Abonnements actifs",
       icon: <CreditCardIcon />,
-      number: `${activeSubscriptions}`,
-      description: `${renewalsComing} renouvellements à venir dans les 15 prochains jours`,
+      number: loading ? "..." : `${activeSubscriptions}`,
+      description: loading
+        ? "Chargement..."
+        : `${renewalsComing} renouvellement${
+            renewalsComing > 1 ? "s" : ""
+          } à venir dans les 15 prochains jours`,
     },
     {
       title: "Economies potentielles",
       icon: <EuroIcon />,
-      number: `${potentialSavings.toFixed(2)} €`,
-      description: "3 suggestions d'optimisation",
+      number: loading ? "..." : `${potentialSavings.toFixed(2)} €`,
+      description: loading ? "Chargement..." : "Aucune suggestion pour le moment",
     },
   ];
 
   return (
-    <div className="flex flex-col lg:flex-row gap-4 lg:gap-8 m-5 lg:m-10">
+    <div className="flex flex-col lg:flex-row gap-4 lg:gap-8 my-5 ml-5 lg:m-10">
       {cards.map((card, index) => (
         <div
           key={index}

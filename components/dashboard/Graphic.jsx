@@ -1,121 +1,56 @@
+"use client";
 import React, { useEffect, useRef, useState } from "react";
 import * as d3 from "d3";
-import { collection, getDocs } from "firebase/firestore";
-import { db } from "@/firebase/firebaseConfig";
+import { getExpensesHistory } from "@/actions/getSubs.action";
+import { auth } from "@/lib/firebaseConfig";
+import { onAuthStateChanged } from "firebase/auth";
+import { useBreakpoint } from "@/hooks/useBreakpoint";
 
 const Graphic = () => {
   const svgRef = useRef(null);
   const [data, setData] = useState([]);
-  const [tooltip, setTooltip] = useState({ visible: false, x: 0, y: 0, value: 0 });
+  const [tooltip, setTooltip] = useState({
+    visible: false,
+    svgX: 0,
+    svgY: 0,
+    value: 0,
+  });
+
+  const isLargeScreen = useBreakpoint();
 
   useEffect(() => {
-    const fetchSubscriptions = async () => {
+    const fetchData = async (userId) => {
       try {
-        const querySnapshot = await getDocs(collection(db, "subscriptions"));
-        const monthlyTotalsSnapshot = await getDocs(collection(db, "monthlyTotals"));
+        const expenses = await getExpensesHistory(userId);
+        console.log("Données récupérées:", expenses);
 
-        const currentMonth = new Date().getMonth();
-        const currentYear = new Date().getFullYear();
-
-        const monthNames = [
-          "Jan",
-          "Fév",
-          "Mar",
-          "Avr",
-          "Mai",
-          "Juin",
-          "Juil",
-          "Août",
-          "Sept",
-          "Oct",
-          "Nov",
-          "Déc",
-        ];
-
-        // Créer un tableau pour les 5 derniers mois avec des montants à 0
-        const lastFiveMonths = Array.from({ length: 5 }, (_, i) => {
-          const date = new Date(currentYear, currentMonth - 4 + i);
-          return { mois: monthNames[date.getMonth()], montant: 0 };
-        });
-
-        // Récupérer les montants des mois précédents depuis Firebase
-        const monthlyTotals = {};
-        monthlyTotalsSnapshot.forEach((doc) => {
-          const dataDoc = doc.data();
-          const month = dataDoc.month; // Mois dans Firebase (1-12)
-          const totalAmount = dataDoc.totalAmount || 0; // Montant
-          if (month !== undefined && totalAmount !== undefined) {
-            monthlyTotals[month] = totalAmount;
-          }
-        });
-
-        // Associer les montants de monthlyTotals aux mois dans lastFiveMonths pour les mois passés
-        lastFiveMonths.forEach((monthData, index) => {
-          const monthIndex = monthNames.indexOf(monthData.mois);
-          const firebaseMonth = monthIndex + 1; // Mois dans Firebase (1-12)
-          if (index < 4) {
-            // Pour les mois précédents (pas le mois actuel)
-            const montantFirebase = monthlyTotals[firebaseMonth] || 0;
-            monthData.montant = montantFirebase; // Assure que si aucune donnée, mettre 0
-          }
-        });
-
-        setData(lastFiveMonths);
-
-        // Traitement des abonnements uniquement pour le mois en cours
-        if (lastFiveMonths[4]) {
-          querySnapshot.forEach((doc) => {
-            const subscription = doc.data();
-            const dueDate = subscription.dueDate?.seconds * 1000; // Convertir le timestamp
-            const amount = subscription.cost || 0;
-            const frequency = subscription.frequency;
-            const serviceName = subscription.serviceName || "Nom Inconnu";
-
-            const currentDate = new Date();
-            const isActive = dueDate && new Date(dueDate) > currentDate;
-
-            if (dueDate && isActive) {
-              const date = new Date(dueDate);
-              const month = date.getMonth();
-              const year = date.getFullYear();
-
-              if (frequency === "monthly" && year === currentYear && month === currentMonth) {
-                lastFiveMonths[4].montant += amount;
-              }
-
-              if (frequency === "yearly") {
-                lastFiveMonths[4].montant += amount / 12; // Répartition sur les 12 mois
-              }
-            }
-          });
-        }
-
-        setData(lastFiveMonths);
+        const sortedData = expenses.sort((a, b) => new Date(a.date) - new Date(b.date));
+        setData(sortedData);
       } catch (error) {
-        console.error("Erreur lors de la récupération des abonnements:", error);
+        console.log("Erreur récupération données:", error);
       }
     };
 
-    fetchSubscriptions();
+    const unsubscribe = onAuthStateChanged(auth, (user) => {
+      if (user) {
+        fetchData(user.uid);
+      }
+    });
+
+    return () => unsubscribe();
   }, []);
 
+  // Ajustement des données pour inclure toujours le mois en cours et les mois les plus récents
+  const currentMonth = new Date().toLocaleString("fr-FR", { month: "long" });
+  const filteredData = data.slice(-1 * (isLargeScreen ? 5 : 3));
+
   useEffect(() => {
-    if (data.length === 0) return;
+    if (filteredData.length === 0) return;
+    console.log("Données pour le graphique:", filteredData);
 
     const margin = { top: 30, right: 30, bottom: 40, left: 40 };
     const width = 500 - margin.left - margin.right;
     const height = 350 - margin.top - margin.bottom;
-
-    const xScale = d3
-      .scalePoint()
-      .domain(data.map((d) => d.mois))
-      .range([0, width]);
-
-    const yScale = d3
-      .scaleLinear()
-      .domain([0, d3.max(data, (d) => d.montant)])
-      .nice()
-      .range([height, 0]);
 
     d3.select(svgRef.current).selectAll("*").remove();
 
@@ -126,36 +61,49 @@ const Graphic = () => {
       .append("g")
       .attr("transform", `translate(${margin.left},${margin.top})`);
 
-    svg
+    // Configuration des échelles
+    const xScale = d3
+      .scalePoint()
+      .domain(filteredData.map((d) => d.mois))
+      .range([0, 300])
+      .padding(1);
+
+    const yScale = d3
+      .scaleLinear()
+      .domain([0, d3.max(filteredData, (d) => d.montant)])
+      .nice()
+      .range([height, 0]);
+
+    // Ajout du dégradé
+    const gradient = svg
       .append("defs")
       .append("linearGradient")
       .attr("id", "gradient")
       .attr("x1", "0%")
       .attr("y1", "100%")
-      .attr("x2", "100%")
-      .attr("y2", "0%")
-      .append("stop")
-      .attr("offset", "0%")
-      .attr("stop-color", "#5C6BC0")
-      .append("stop")
-      .attr("offset", "100%")
-      .attr("stop-color", "#EF6C00");
+      .attr("x2", "0%")
+      .attr("y2", "0%"); // Ajuste pour un dégradé vertical
+    gradient.append("stop").attr("offset", "0%").attr("stop-color", "#5C6BC0");
+    gradient.append("stop").attr("offset", "100%").attr("stop-color", "#EF6C00");
 
+    // Générateur de lignes
     const lineGenerator = d3
       .line()
       .x((d) => xScale(d.mois))
       .y((d) => yScale(d.montant))
       .curve(d3.curveMonotoneX);
 
+    // Ligne du graphique
     svg
       .append("path")
-      .datum(data)
+      .datum(filteredData)
       .attr("class", "line")
       .attr("d", lineGenerator)
       .style("fill", "none")
       .style("stroke", "#2563eb")
       .style("stroke-width", 2);
 
+    // Générateur d'aire
     const areaGenerator = d3
       .area()
       .x((d) => xScale(d.mois))
@@ -163,19 +111,23 @@ const Graphic = () => {
       .y1((d) => yScale(d.montant))
       .curve(d3.curveMonotoneX);
 
+    // Aire du graphique
     svg
       .append("path")
-      .datum(data)
+      .datum(filteredData)
       .attr("class", "area")
       .attr("d", areaGenerator)
       .style("fill", "url(#gradient)");
 
+    // Axes
     svg.append("g").attr("transform", `translate(0,${height})`).call(d3.axisBottom(xScale));
+
     svg.append("g").call(d3.axisLeft(yScale));
 
+    // Points interactifs
     svg
       .selectAll(".dot")
-      .data(data)
+      .data(filteredData)
       .enter()
       .append("circle")
       .attr("class", "dot")
@@ -184,49 +136,60 @@ const Graphic = () => {
       .attr("r", 5)
       .style("fill", "#2563eb")
       .on("mouseover", (event, d) => {
-        const { clientX, clientY } = event;
         setTooltip({
           visible: true,
-          x: clientX,
-          y: clientY,
+          svgX: xScale(d.mois),
+          svgY: yScale(d.montant),
           value: d.montant,
         });
       })
       .on("mouseout", () => {
-        setTooltip({ visible: false, x: 0, y: 0, value: 0 });
+        setTooltip({ visible: false, svgX: 0, svgY: 0, value: 0 });
       });
-  }, [data]);
 
-  const adjustTooltipPosition = (x, y) => {
-    const tooltipWidth = 150;
-    const tooltipHeight = 40;
-    const maxX = window.innerWidth - tooltipWidth - 20; // Limite droite
-    const maxY = window.innerHeight - tooltipHeight - 20; // Limite bas
+    // Tooltip dans le SVG
+    if (tooltip.visible) {
+      svg
+        .append("g")
+        .attr("class", "tooltip")
+        .attr("transform", `translate(${tooltip.svgX},${tooltip.svgY})`)
+        .append("text")
+        .attr("text-anchor", "middle")
+        .attr("dy", "-10")
+        .attr("fill", "white")
+        .style("font-size", "12px")
+        .text(`${tooltip.value.toFixed(2)} €`)
+        .each(function () {
+          // Ajouter un rectangle de fond
+          const bbox = this.getBBox();
+          const padding = 4;
 
-    // Empêcher le tooltip de sortir à droite et en bas
-    const adjustedX = x > maxX ? maxX : x + 10;
-    const adjustedY = y > maxY ? maxY : y + 10;
+          d3.select(this.parentNode)
+            .insert("rect", "text")
+            .attr("x", bbox.x - padding)
+            .attr("y", bbox.y - padding)
+            .attr("width", bbox.width + padding * 2)
+            .attr("height", bbox.height + padding * 2)
+            .attr("fill", "black")
+            .attr("rx", 4);
+        });
+    }
+  }, [filteredData, tooltip]); // Dépendance à filteredData et tooltip
 
-    return { x: adjustedX, y: adjustedY };
-  };
+  if (data.length === 0) {
+    return (
+      <div className="p-5 lg:py-10 bg-n-7 rounded-xl h-[500px] flex items-center justify-center">
+        <p className="text-white">Chargement des données...</p>
+      </div>
+    );
+  }
 
   return (
-    <div className="p-5 lg:py-10 bg-n-7 rounded-xl h-[500px] relative">
-      <h2 className="text-2xl text-white text-center font-semibold mb-6">Suivi des abonnements</h2>
-      <svg ref={svgRef}></svg>
-      {tooltip.visible && (
-        <div
-          className="bg-black text-white p-2 rounded"
-          style={{
-            top: adjustTooltipPosition(tooltip.x, tooltip.y).y,
-            left: adjustTooltipPosition(tooltip.x, tooltip.y).x,
-            pointerEvents: "none",
-            transition: "all 0.3s ease-in-out",
-          }}
-        >
-          {tooltip.value} €
-        </div>
-      )}
+    <div className="pr-5 py-5 lg:py-10 bg-n-7 rounded-xl w-full h-[500px] relative flex flex-col items-center justify-center">
+      <h2 className="text-2xl text-white text-center font-semibold mb-6">
+        Évolution des dépenses mensuelles
+      </h2>
+      <svg ref={svgRef} className="max-w-full lg:pl-9"></svg>
     </div>
   );
 };

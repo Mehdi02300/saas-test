@@ -10,12 +10,16 @@
   },
   "dependencies": {
     "autoprefixer": "^10.4.20",
+    "crypto-browserify": "^3.12.1",
     "d3": "^7.9.0",
     "firebase": "^11.0.2",
+    "js-cookie": "^3.0.5",
     "lucide-react": "^0.457.0",
     "next": "15.0.3",
     "react": "19.0.0-rc-66855b96-20241106",
-    "react-dom": "19.0.0-rc-66855b96-20241106"
+    "react-dom": "19.0.0-rc-66855b96-20241106",
+    "stream-browserify": "^3.0.0",
+    "util": "^0.12.5"
   },
   "devDependencies": {
     "postcss": "^8.4.49",

@@ -1,7 +1,7 @@
 import { useRouter } from "next/navigation";
 import { useState } from "react";
 import { createUserWithEmailAndPassword } from "firebase/auth";
-import { auth } from "@/firebase/firebaseConfig";
+import { auth } from "@/lib/firebaseConfig";
 
 const FormSignUp = () => {
   const [email, setEmail] = useState("");

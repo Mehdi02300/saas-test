@@ -1,29 +1,62 @@
+"use client";
 import { useState } from "react";
 import { signInWithEmailAndPassword } from "firebase/auth";
-import { auth } from "@/firebase/firebaseConfig";
+import { auth } from "@/lib/firebaseConfig";
 import { useRouter } from "next/navigation";
+import { handleLogin } from "@/actions/auth.action";
 
 const FormLogin = () => {
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
-  const [error, setError] = useState("");
+  const [isLoading, setIsLoading] = useState(false);
+  const [error, setError] = useState(null);
   const router = useRouter();
 
-  const handleLogin = async (e) => {
-    e.preventDefault();
-    setError("");
+  async function onSubmit(event) {
+    event.preventDefault();
+    setIsLoading(true);
+    setError(null);
+
     try {
-      await signInWithEmailAndPassword(auth, email, password);
-      router.push("/dashboard");
+      // Authentification Firebase
+      const userCredential = await signInWithEmailAndPassword(auth, email, password);
+      console.log("Firebase auth success");
+
+      // Obtention du token
+      const token = await userCredential.user.getIdToken();
+      console.log("Token obtained");
+
+      // Création de la session
+      const result = await handleLogin(token);
+      console.log("Login result:", result);
+
+      if (result.success) {
+        // Redirection avec un petit délai pour laisser le temps au cookie de s'établir
+        setTimeout(() => {
+          router.push("/dashboard");
+          router.refresh();
+        }, 100);
+      } else {
+        setError(result.error || "Une erreur est survenue");
+      }
     } catch (err) {
-      setError(err.message);
+      console.error("Login error:", err);
+      if (err.code === "auth/invalid-credential") {
+        setError("Email ou mot de passe incorrect");
+      } else if (err.code === "auth/too-many-requests") {
+        setError("Trop de tentatives, veuillez réessayer plus tard");
+      } else {
+        setError("Une erreur est survenue");
+      }
+    } finally {
+      setIsLoading(false);
     }
-  };
+  }
 
   return (
     <div className="flex items-center justify-center h-screen">
       <form
-        onSubmit={handleLogin}
+        onSubmit={onSubmit}
         className="relative p-6 lg:p-12 bg-n-6 rounded shadow-lg lg:rounded-xl w-80 lg:h-[450px] lg:w-[500px]"
       >
         <button
@@ -53,11 +86,13 @@ const FormLogin = () => {
             <input
               type="email"
               id="email"
+              name="email"
               value={email}
               onChange={(e) => setEmail(e.target.value)}
               className="w-full px-5 py-3 border rounded shadow-sm"
               placeholder="Entrez votre email"
               required
+              disabled={isLoading}
             />
           </div>
           <div className="mb-4">
@@ -67,18 +102,21 @@ const FormLogin = () => {
             <input
               type="password"
               id="password"
+              name="password"
               value={password}
               onChange={(e) => setPassword(e.target.value)}
               className="w-full px-5 py-3 border rounded shadow-sm"
               placeholder="Entrez votre mot de passe"
               required
+              disabled={isLoading}
             />
           </div>
           <button
             type="submit"
-            className="w-full px-5 py-3 text-white bg-n-9 rounded hover:bg-n-7 animate"
+            disabled={isLoading}
+            className="w-full px-5 py-3 text-white bg-n-9 rounded hover:bg-n-7 animate disabled:opacity-50"
           >
-            Se connecter
+            {isLoading ? "Connexion..." : "Se connecter"}
           </button>
         </div>
       </form>
