@@ -49,7 +49,7 @@ const Graphic = () => {
     console.log("Données pour le graphique:", filteredData);
 
     const margin = { top: 30, right: 30, bottom: 40, left: 40 };
-    const width = 500 - margin.left - margin.right;
+    const width = 300 - margin.left - margin.right;
     const height = 350 - margin.top - margin.bottom;
 
     d3.select(svgRef.current).selectAll("*").remove();
@@ -65,8 +65,8 @@ const Graphic = () => {
     const xScale = d3
       .scalePoint()
       .domain(filteredData.map((d) => d.mois))
-      .range([0, 300])
-      .padding(1);
+      .range([0, width]) // Utiliser width au lieu de 300
+      .padding(0); // Mettre le padding à 0
 
     const yScale = d3
       .scaleLinear()
@@ -178,18 +178,25 @@ const Graphic = () => {
 
   if (data.length === 0) {
     return (
-      <div className="p-5 lg:py-10 bg-n-7 rounded-xl h-[500px] flex items-center justify-center">
+      <div className="p-5 lg:py-10 bg-n-7 rounded-xl h-[450px] flex items-center justify-center">
         <p className="text-white">Chargement des données...</p>
       </div>
     );
   }
 
+  if (!data || data.length === 0 || data.every((d) => d.montant === 0)) {
+    return (
+      <div className="p-5 bg-n-7 rounded-xl h-[450px] flex flex-col items-center justify-start">
+        <h2 className="h4 text-center mb-5">Évolution des dépenses mensuelles</h2>
+        <p className="text-white">Aucun abonnement trouvé.</p>
+      </div>
+    );
+  }
+
   return (
-    <div className="pr-5 py-5 lg:py-10 bg-n-7 rounded-xl w-full h-[500px] relative flex flex-col items-center justify-center">
-      <h2 className="text-2xl text-white text-center font-semibold mb-6">
-        Évolution des dépenses mensuelles
-      </h2>
-      <svg ref={svgRef} className="max-w-full lg:pl-9"></svg>
+    <div className="pr-5 py-5 bg-n-7 rounded-xl w-full h-[450px] relative flex flex-col items-center justify-center">
+      <h2 className="h4 text-center">Évolution des dépenses mensuelles</h2>
+      <svg ref={svgRef} className="max-w-full"></svg>
     </div>
   );
 };

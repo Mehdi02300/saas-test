@@ -48,19 +48,19 @@ const SideBar = () => {
             <li>
               <Link href={"#"} className="flex gap-1 lg:gap-3">
                 <CreditCardIcon />
-                <span className="text-lg hidden lg:block">Abonnements</span>
+                <span className="text-md hidden lg:block">Abonnements</span>
               </Link>
             </li>
             <li>
               <Link href={"#"} className="flex gap-1 lg:gap-3">
                 <Bell />
-                <span className="text-lg hidden lg:block">Notifications</span>
+                <span className="text-md hidden lg:block">Notifications</span>
               </Link>
             </li>
             <li>
               <Link href={"#"} className="flex gap-1 lg:gap-3">
                 <SettingsIcon />
-                <span className="text-lg hidden lg:block">Paramètres</span>
+                <span className="text-md hidden lg:block">Paramètres</span>
               </Link>
             </li>
           </ul>
@@ -73,7 +73,7 @@ const SideBar = () => {
           className="flex items-center gap-3 px-1 lg:px-4 py-1 bg-red-500 rounded-md hover:bg-red-600"
         >
           <LogOutIcon />
-          <span className="text-lg hidden lg:block">
+          <span className="text-md hidden lg:block">
             {isLoading ? "Déconnexion..." : "Me déconnecter"}
           </span>
         </button>

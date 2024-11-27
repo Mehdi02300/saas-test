@@ -48,14 +48,7 @@ const LittleCard = () => {
           const dueDate = new Date(subscription.dueDate);
           const cost = parseFloat(subscription.cost) || 0;
           const frequency = subscription.frequency || "monthly";
-          const isActive = dueDate > currentDate;
-
-          console.log("Analyse abonnement:", {
-            serviceName: subscription.serviceName,
-            cost,
-            dueDate,
-            isActive,
-          });
+          const isActive = subscription.isActive; // Utiliser la propriété isActive directement
 
           const monthlyCost =
             frequency === "yearly"
@@ -66,6 +59,7 @@ const LittleCard = () => {
               ? cost * 4
               : cost;
 
+          // Calcul pour le mois actuel
           if (isActive) {
             if (
               frequency === "monthly" &&
@@ -79,13 +73,39 @@ const LittleCard = () => {
             activeCount++;
           }
 
+          // Calcul pour le mois précédent
+          const lastMonth = currentMonth === 0 ? 11 : currentMonth - 1;
+          const lastMonthYear = currentMonth === 0 ? currentYear - 1 : currentYear;
+
+          if (isActive) {
+            if (
+              frequency === "monthly" &&
+              dueDate.getMonth() === lastMonth &&
+              dueDate.getFullYear() === lastMonthYear
+            ) {
+              lastMonthExpenses += cost;
+            } else if (frequency !== "monthly") {
+              lastMonthExpenses += monthlyCost;
+            }
+          }
+
+          // Renouvellements à venir
           if (dueDate >= currentDate && dueDate <= fifteenDaysFromNow) {
             renewalsCount++;
           }
         });
 
+        // Calcul du pourcentage de changement
+        let percentageChangeValue = 0;
+        if (lastMonthExpenses > 0) {
+          percentageChangeValue =
+            ((currentMonthExpenses - lastMonthExpenses) / lastMonthExpenses) * 100;
+        }
+
         console.log("Statistiques calculées:", {
           currentMonthExpenses,
+          lastMonthExpenses,
+          percentageChange: percentageChangeValue,
           activeCount,
           renewalsCount,
         });
@@ -93,6 +113,7 @@ const LittleCard = () => {
         setTotalExpenses(currentMonthExpenses);
         setActiveSubscriptions(activeCount);
         setPotentialSavings(0);
+        setPercentageChange(percentageChangeValue.toFixed(1));
         setRenewalsComing(renewalsCount);
         setSubscriptions(subscriptionsArray);
       } catch (error) {
@@ -129,7 +150,7 @@ const LittleCard = () => {
       number: loading ? "..." : `${totalExpenses.toFixed(2)} €`,
       description: loading
         ? "Chargement..."
-        : `${percentageChange >= 0 ? "+" : ""}${percentageChange}% par rapport au mois dernier`,
+        : `${percentageChange > 0 ? "+" : ""}${percentageChange}% par rapport au mois dernier`,
     },
     {
       title: "Abonnements actifs",
@@ -145,7 +166,9 @@ const LittleCard = () => {
       title: "Economies potentielles",
       icon: <EuroIcon />,
       number: loading ? "..." : `${potentialSavings.toFixed(2)} €`,
-      description: loading ? "Chargement..." : "Aucune suggestion pour le moment",
+      description: loading
+        ? "Chargement..."
+        : "Suggestions de l'IA pour faire de l'économie à venir.",
     },
   ];
 

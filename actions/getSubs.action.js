@@ -7,18 +7,18 @@ export async function getExpensesHistory(userId) {
   try {
     function getMonthName(monthNumber) {
       const months = [
-        "Janvier",
-        "Février",
+        "Jan",
+        "Fév",
         "Mars",
-        "Avril",
+        "Avr",
         "Mai",
         "Juin",
-        "Juillet",
+        "Juil",
         "Août",
-        "Septembre",
-        "Octobre",
-        "Novembre",
-        "Décembre",
+        "Sep",
+        "Oct",
+        "Nov",
+        "Déc",
       ];
       return months[monthNumber];
     }
@@ -56,7 +56,6 @@ export async function getExpensesHistory(userId) {
       expensesMap[data.month] = data.amount;
     });
 
-    // Assure que nous avons des données pour tous les mois
     const result = monthsRange.map((month) => ({
       mois: month.mois,
       montant: expensesMap[month.date] || 0,
