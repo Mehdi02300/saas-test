@@ -77,7 +77,7 @@ const BigCard = () => {
         </div>
         <div className="flex flex-col justify-between gap-3 w-full">
           {subscriptions.length === 0 ? (
-            <p className="lg:mt-5 text-center">Aucun abonnement à renouveler à venir.</p>
+            <p className="lg:mt-8 text-center">Aucun abonnement à renouveler à venir.</p>
           ) : (
             subscriptions.map((subscription) => (
               <div key={subscription.id} className="bg-n-9 rounded-xl p-5">

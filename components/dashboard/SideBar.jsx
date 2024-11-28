@@ -1,5 +1,5 @@
 "use client";
-import { Bell, CreditCardIcon, HandCoins, LogOutIcon, SettingsIcon } from "lucide-react";
+import { Bell, CreditCardIcon, HandCoins, HouseIcon, LogOutIcon, SettingsIcon } from "lucide-react";
 import Link from "next/link";
 import { signOut } from "firebase/auth";
 import { auth } from "@/lib/firebaseConfig";
@@ -8,7 +8,8 @@ import { handleLogout } from "@/actions/auth.action";
 import { useRouter } from "next/navigation";
 
 const MENU_ITEMS = [
-  { icon: <CreditCardIcon />, text: "Abonnements", href: "#" },
+  { icon: <HouseIcon />, text: "Tableau de bord", href: "/dashboard" },
+  { icon: <CreditCardIcon />, text: "Abonnements", href: "/dashboard/subscriptions" },
   { icon: <Bell />, text: "Notifications", href: "#" },
   { icon: <SettingsIcon />, text: "Paramètres", href: "#" },
 ];
@@ -46,9 +47,9 @@ const SideBar = () => {
           <ul className="space-y-5 lg:space-y-10">
             {MENU_ITEMS.map(({ icon, text, href }) => (
               <li key={text}>
-                <Link href={href} className="flex gap-1 lg:gap-3">
+                <Link href={href} className="flex items-end gap-1 lg:gap-3">
                   {icon}
-                  <span className="text-md hidden lg:block">{text}</span>
+                  <span className="text-sm hidden lg:block">{text}</span>
                 </Link>
               </li>
             ))}
@@ -56,14 +57,14 @@ const SideBar = () => {
         </nav>
       </div>
 
-      <div className="mb-6 lg:px-10">
+      <div className="mb-6 lg:mx-10">
         <button
           onClick={handleClick}
-          className="flex items-center gap-3 px-1 lg:px-4 py-1 bg-red-500 rounded-md hover:bg-red-600"
+          className="flex items-center gap-3 px-1 lg:px-5 py-1 bg-red-500 rounded-md hover:bg-red-600"
           disabled={isLoading}
         >
           <LogOutIcon />
-          <span className="text-md hidden lg:block">
+          <span className="text-sm hidden lg:block">
             {isLoading ? "Déconnexion..." : "Me déconnecter"}
           </span>
         </button>

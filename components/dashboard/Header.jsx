@@ -1,4 +1,5 @@
 "use client";
+
 import React, { useState } from "react";
 import { PlusIcon } from "lucide-react";
 import Button from "../Button";
@@ -21,8 +22,10 @@ const Header = () => {
 
       {isModalOpen && (
         <div className="fixed inset-0 bg-gray-500 bg-opacity-50 flex justify-center items-center z-50">
-          <div className="bg-white p-6 rounded-lg max-w-md w-full shadow-lg">
-            <h2 className="text-2xl font-semibold text-gray-700 mb-4">Ajouter un abonnement</h2>
+          <div className="bg-n-9 p-6 rounded-lg max-w-md w-full shadow-lg">
+            <h2 className="text-2xl font-semibold text-white border-b-2 border-b-n-7 pb-5 mb-2">
+              Ajouter un abonnement
+            </h2>
             <AddSub />
             <button
               onClick={() => setIsModalOpen(false)}

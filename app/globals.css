@@ -31,5 +31,5 @@ a.button:hover {
 }
 
 a:hover {
-  @apply underline text-p-3 animate;
+  @apply underline animate;
 }
