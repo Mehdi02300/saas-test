@@ -1,8 +1,8 @@
 import Image from "next/image";
-import Button from "./Button";
-import Container from "./Container";
 import Grid from "@/components/theme/Hero";
-import Tache from "./theme/Header";
+import Button from "../Button";
+import Container from "../Container";
+import Tache from "../theme/Header";
 
 const Hero = () => {
   return (

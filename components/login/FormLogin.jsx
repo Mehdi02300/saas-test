@@ -6,11 +6,15 @@ import { useRouter } from "next/navigation";
 import { handleLogin } from "@/actions/auth.action";
 
 const FormLogin = () => {
-  const [email, setEmail] = useState("");
-  const [password, setPassword] = useState("");
+  const [form, setForm] = useState({ email: "", password: "" });
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState(null);
   const router = useRouter();
+
+  const errorMessages = {
+    "auth/invalid-credential": "Email ou mot de passe incorrect",
+    "auth/too-many-requests": "Trop de tentatives, veuillez réessayer plus tard",
+  };
 
   async function onSubmit(event) {
     event.preventDefault();
@@ -18,20 +22,11 @@ const FormLogin = () => {
     setError(null);
 
     try {
-      // Authentification Firebase
-      const userCredential = await signInWithEmailAndPassword(auth, email, password);
-      console.log("Firebase auth success");
-
-      // Obtention du token
+      const userCredential = await signInWithEmailAndPassword(auth, form.email, form.password);
       const token = await userCredential.user.getIdToken();
-      console.log("Token obtained");
-
-      // Création de la session
       const result = await handleLogin(token);
-      console.log("Login result:", result);
 
       if (result.success) {
-        // Redirection avec un petit délai pour laisser le temps au cookie de s'établir
         setTimeout(() => {
           router.push("/dashboard");
           router.refresh();
@@ -40,14 +35,7 @@ const FormLogin = () => {
         setError(result.error || "Une erreur est survenue");
       }
     } catch (err) {
-      console.error("Login error:", err);
-      if (err.code === "auth/invalid-credential") {
-        setError("Email ou mot de passe incorrect");
-      } else if (err.code === "auth/too-many-requests") {
-        setError("Trop de tentatives, veuillez réessayer plus tard");
-      } else {
-        setError("Une erreur est survenue");
-      }
+      setError(errorMessages[err.code] || "Une erreur est survenue");
     } finally {
       setIsLoading(false);
     }
@@ -76,8 +64,11 @@ const FormLogin = () => {
           </svg>
           Retour
         </button>
+
         <h2 className="h2 text-center">Connexion</h2>
+
         {error && <p className="mb-4 text-sm text-red-500 bg-red-100 p-2 rounded">{error}</p>}
+
         <div className="lg:space-y-10">
           <div className="mb-4">
             <label htmlFor="email" className="block mb-1 text-md">
@@ -86,15 +77,15 @@ const FormLogin = () => {
             <input
               type="email"
               id="email"
-              name="email"
-              value={email}
-              onChange={(e) => setEmail(e.target.value)}
+              value={form.email}
+              onChange={(e) => setForm({ ...form, email: e.target.value })}
               className="w-full px-5 py-3 border rounded shadow-sm"
               placeholder="Entrez votre email"
               required
               disabled={isLoading}
             />
           </div>
+
           <div className="mb-4">
             <label htmlFor="password" className="block mb-1 text-md">
               Mot de passe
@@ -102,15 +93,15 @@ const FormLogin = () => {
             <input
               type="password"
               id="password"
-              name="password"
-              value={password}
-              onChange={(e) => setPassword(e.target.value)}
+              value={form.password}
+              onChange={(e) => setForm({ ...form, password: e.target.value })}
               className="w-full px-5 py-3 border rounded shadow-sm"
               placeholder="Entrez votre mot de passe"
               required
               disabled={isLoading}
             />
           </div>
+
           <button
             type="submit"
             disabled={isLoading}

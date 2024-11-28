@@ -1,7 +1,7 @@
 import { HandCoins } from "lucide-react";
-import Container from "./Container";
-import Button from "./Button";
-import Tache from "./theme/Header";
+import Container from "../Container";
+import Button from "../Button";
+import Tache from "../theme/Header";
 import Link from "next/link";
 
 const Header = () => {

@@ -1,8 +1,7 @@
 import Cookies from "js-cookie";
 
-export async function verifyToken(token) {
+async function verifyToken(token) {
   try {
-    console.log("Vérification du token...");
     const response = await fetch(
       `https://identitytoolkit.googleapis.com/v1/accounts:lookup?key=${process.env.NEXT_PUBLIC_FIREBASE_API_KEY}`,
       {
@@ -14,28 +13,23 @@ export async function verifyToken(token) {
       }
     );
 
-    const data = await response.json();
-    console.log("Réponse de vérification:", data);
-
     return response.ok;
-  } catch (error) {
-    console.error("Erreur de vérification:", error);
+  } catch {
     return false;
   }
 }
 
-export function getSession() {
-  const session = Cookies.get("session");
-  console.log("Session récupérée:", session);
-  return session;
+function getSession() {
+  return Cookies.get("session");
 }
 
-export function setSession(token) {
-  console.log("Définition de la session avec le token:", token);
-  const expiresIn = 60 * 60 * 24 * 5; // 5 jours
+function setSession(token) {
+  const FIVE_DAYS = 60 * 60 * 24 * 5;
 
   Cookies.set("session", token, {
-    expires: expiresIn,
+    expires: FIVE_DAYS,
     secure: process.env.NODE_ENV === "production",
   });
 }
+
+export { verifyToken, getSession, setSession };

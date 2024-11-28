@@ -1,17 +1,18 @@
+"use client";
 import { useState, useEffect } from "react";
 
 export function useBreakpoint() {
   const [isLargeScreen, setIsLargeScreen] = useState(false);
 
   useEffect(() => {
+    // Screen size updater function
     const updateScreenSize = () => {
-      setIsLargeScreen(window.innerWidth >= 1024); // lg: 1024px (selon Tailwind CSS)
+      setIsLargeScreen(window.innerWidth >= 768);
     };
 
-    updateScreenSize(); // Vérifiez la taille de l'écran initialement
-    window.addEventListener("resize", updateScreenSize); // Écoute les changements de taille
-
-    return () => window.removeEventListener("resize", updateScreenSize); // Nettoyage
+    updateScreenSize();
+    window.addEventListener("resize", updateScreenSize);
+    return () => window.removeEventListener("resize", updateScreenSize);
   }, []);
 
   return isLargeScreen;

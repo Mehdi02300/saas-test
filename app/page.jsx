@@ -1,9 +1,9 @@
-import Features from "@/components/Features";
-import Header from "@/components/Header";
-import Hero from "@/components/Hero";
-import CallToAction from "@/components/CallToAction";
-import Pricing from "@/components/Pricing";
+import Header from "@/components/home/Header";
 import Footer from "@/components/Footer";
+import Pricing from "@/components/home/Pricing";
+import Features from "@/components/home/Features";
+import Hero from "@/components/home/Hero";
+import CallToAction from "@/components/home/CallToAction";
 
 export default function Home() {
   return (

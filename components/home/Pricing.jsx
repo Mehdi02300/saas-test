@@ -1,8 +1,8 @@
 import React from "react";
-import Heading from "./Heading";
-import Container from "./Container";
 import { CheckCircle } from "lucide-react";
-import Button from "./Button";
+import Container from "../Container";
+import Button from "../Button";
+import Heading from "./Heading";
 
 const Pricing = () => {
   return (

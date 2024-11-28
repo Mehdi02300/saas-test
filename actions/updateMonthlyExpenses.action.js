@@ -1,39 +1,32 @@
-// actions/updateMonthlyExpenses.action.js
 "use server";
 
 import { collection, query, where, getDocs, addDoc, updateDoc, doc } from "firebase/firestore";
 import { db } from "@/lib/firebaseConfig";
 
 async function calculateMonthlyTotal(subscriptions, targetDate) {
-  let total = 0;
-
-  subscriptions.forEach((sub) => {
-    // Skip si l'abonnement est inactif
-    if (!sub.isActive) return;
+  return subscriptions.reduce((total, sub) => {
+    if (!sub.isActive) return total;
 
     const dueDate = new Date(sub.dueDate);
     const cost = parseFloat(sub.cost) || 0;
 
-    if (sub.frequency === "yearly") {
-      // Pour les abonnements annuels, diviser par 12
-      total += cost / 12;
-    } else if (sub.frequency === "monthly") {
-      // Pour les abonnements mensuels, vérifier si l'échéance est dans le mois cible
-      if (
-        dueDate.getMonth() === targetDate.getMonth() &&
-        dueDate.getFullYear() === targetDate.getFullYear()
-      ) {
-        total += cost;
-      }
-    }
-  });
+    if (sub.frequency === "yearly") return total + cost / 12;
 
-  return total;
+    if (
+      sub.frequency === "monthly" &&
+      dueDate.getMonth() === targetDate.getMonth() &&
+      dueDate.getFullYear() === targetDate.getFullYear()
+    ) {
+      return total + cost;
+    }
+
+    return total;
+  }, 0);
 }
 
 export async function updateMonthlyExpenses(userId) {
   try {
-    // 1. Récupérer tous les abonnements de l'utilisateur
+    // Get all user subscriptions
     const subsQuery = query(collection(db, "subscriptions"), where("userId", "==", userId));
     const subsSnapshot = await getDocs(subsQuery);
     const subscriptions = subsSnapshot.docs.map((doc) => ({
@@ -41,48 +34,44 @@ export async function updateMonthlyExpenses(userId) {
       id: doc.id,
     }));
 
-    // 2. Calculer les montants pour les 5 derniers mois
-    const months = [];
-    for (let i = 4; i >= 0; i--) {
-      const date = new Date();
-      date.setMonth(date.getMonth() - i);
-      const monthId = `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, "0")}`;
+    // Calculate last 5 months expenses
+    const months = await Promise.all(
+      Array.from({ length: 5 }, async (_, i) => {
+        const date = new Date();
+        date.setMonth(date.getMonth() - (4 - i));
+        const monthId = `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, "0")}`;
+        const amount = await calculateMonthlyTotal(subscriptions, date);
+        return { month: monthId, amount };
+      })
+    );
 
-      const amount = await calculateMonthlyTotal(subscriptions, date);
-      months.push({ month: monthId, amount });
-    }
+    // Update or create monthly expenses records
+    await Promise.all(
+      months.map(async ({ month, amount }) => {
+        const expenseQuery = query(
+          collection(db, "monthlyExpenses"),
+          where("userId", "==", userId),
+          where("month", "==", month)
+        );
+        const expenseSnapshot = await getDocs(expenseQuery);
 
-    // 3. Mettre à jour ou créer les enregistrements dans monthlyExpenses
-    for (const monthData of months) {
-      const expenseQuery = query(
-        collection(db, "monthlyExpenses"),
-        where("userId", "==", userId),
-        where("month", "==", monthData.month)
-      );
-
-      const expenseSnapshot = await getDocs(expenseQuery);
-
-      if (expenseSnapshot.empty) {
-        // Créer nouveau
-        await addDoc(collection(db, "monthlyExpenses"), {
+        const data = {
           userId,
-          month: monthData.month,
-          amount: monthData.amount,
-          createdAt: new Date().toISOString(),
-        });
-      } else {
-        // Mettre à jour existant
-        const docId = expenseSnapshot.docs[0].id;
-        await updateDoc(doc(db, "monthlyExpenses", docId), {
-          amount: monthData.amount,
-          updatedAt: new Date().toISOString(),
-        });
-      }
-    }
+          month,
+          amount,
+          ...(expenseSnapshot.empty
+            ? { createdAt: new Date().toISOString() }
+            : { updatedAt: new Date().toISOString() }),
+        };
+
+        return expenseSnapshot.empty
+          ? addDoc(collection(db, "monthlyExpenses"), data)
+          : updateDoc(doc(db, "monthlyExpenses", expenseSnapshot.docs[0].id), data);
+      })
+    );
 
     return { success: true };
   } catch (error) {
-    console.error("Erreur mise à jour dépenses:", error);
     throw new Error("Erreur lors de la mise à jour des dépenses mensuelles");
   }
 }

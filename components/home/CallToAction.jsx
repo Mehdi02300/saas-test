@@ -1,6 +1,6 @@
 import { ArrowBigRight } from "lucide-react";
-import Button from "./Button";
-import Container from "./Container";
+import Button from "../Button";
+import Container from "../Container";
 
 const CallToAction = ({ minify = false }) => {
   return (

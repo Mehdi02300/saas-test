@@ -1,7 +1,6 @@
 import React from "react";
-import Container from "./Container";
 import { Bell, CreditCard, LineChart, Smartphone, Sparkles, Users } from "lucide-react";
-import Tache from "./theme/Header";
+import Container from "../Container";
 
 const Features = () => {
   const features = [

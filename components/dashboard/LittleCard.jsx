@@ -7,139 +7,107 @@ import { CreditCardIcon, EuroIcon } from "lucide-react";
 import { onAuthStateChanged } from "firebase/auth";
 
 const LittleCard = () => {
-  const [subscriptions, setSubscriptions] = useState([]);
-  const [loading, setLoading] = useState(true);
-  const [totalExpenses, setTotalExpenses] = useState(0);
-  const [activeSubscriptions, setActiveSubscriptions] = useState(0);
-  const [potentialSavings, setPotentialSavings] = useState(0);
-  const [percentageChange, setPercentageChange] = useState(0);
-  const [renewalsComing, setRenewalsComing] = useState(0);
+  const [stats, setStats] = useState({
+    totalExpenses: 0,
+    activeSubscriptions: 0,
+    potentialSavings: 0,
+    percentageChange: 0,
+    renewalsComing: 0,
+    loading: true,
+  });
 
   useEffect(() => {
+    const calculateStats = (subscriptions) => {
+      const now = new Date(); // Utiliser une nouvelle date
+      const currentMonth = now.getMonth();
+      const currentYear = now.getFullYear();
+      const lastMonth = currentMonth === 0 ? 11 : currentMonth - 1;
+      const lastMonthYear = currentMonth === 0 ? currentYear - 1 : currentYear;
+      const fifteenDaysFromNow = new Date(now); // Créer une nouvelle date basée sur now
+      fifteenDaysFromNow.setDate(fifteenDaysFromNow.getDate() + 15);
+
+      return subscriptions.reduce(
+        (acc, sub) => {
+          if (!sub.isActive) return acc;
+
+          const dueDate = new Date(sub.dueDate);
+          const cost = parseFloat(sub.cost) || 0;
+          const monthlyCost = sub.frequency === "yearly" ? cost / 12 : cost;
+
+          // Current month expenses
+          if (
+            sub.frequency === "monthly" &&
+            dueDate.getMonth() === currentMonth &&
+            dueDate.getFullYear() === currentYear
+          ) {
+            acc.currentMonthExpenses += cost;
+          } else if (sub.frequency === "yearly") {
+            acc.currentMonthExpenses += monthlyCost;
+          }
+
+          // Last month expenses
+          if (
+            sub.frequency === "monthly" &&
+            dueDate.getMonth() === lastMonth &&
+            dueDate.getFullYear() === lastMonthYear
+          ) {
+            acc.lastMonthExpenses += cost;
+          } else if (sub.frequency === "yearly") {
+            acc.lastMonthExpenses += monthlyCost;
+          }
+
+          // Active subscriptions and renewals
+          acc.activeCount++;
+          if (dueDate >= now && dueDate <= fifteenDaysFromNow) {
+            acc.renewalsCount++;
+          }
+
+          return acc;
+        },
+        {
+          currentMonthExpenses: 0,
+          lastMonthExpenses: 0,
+          activeCount: 0,
+          renewalsCount: 0,
+        }
+      );
+    };
+
     const fetchSubscriptions = async (user) => {
       try {
-        if (!user) {
-          throw new Error("Utilisateur non connecté");
-        }
-
         const q = query(collection(db, "subscriptions"), where("userId", "==", user.uid));
-
-        const querySnapshot = await getDocs(q);
-        const subscriptionsArray = querySnapshot.docs.map((doc) => ({
+        const snapshot = await getDocs(q);
+        const subscriptions = snapshot.docs.map((doc) => ({
           id: doc.id,
           ...doc.data(),
         }));
 
-        console.log("Subscriptions trouvées:", subscriptionsArray);
+        const { currentMonthExpenses, lastMonthExpenses, activeCount, renewalsCount } =
+          calculateStats(subscriptions);
 
-        let currentMonthExpenses = 0;
-        let lastMonthExpenses = 0;
-        let activeCount = 0;
-        let renewalsCount = 0;
+        const percentageChange =
+          lastMonthExpenses > 0
+            ? ((currentMonthExpenses - lastMonthExpenses) / lastMonthExpenses) * 100
+            : 0;
 
-        const currentDate = new Date();
-        const currentMonth = currentDate.getMonth();
-        const currentYear = currentDate.getFullYear();
-
-        const fifteenDaysFromNow = new Date();
-        fifteenDaysFromNow.setDate(fifteenDaysFromNow.getDate() + 15);
-
-        subscriptionsArray.forEach((subscription) => {
-          const dueDate = new Date(subscription.dueDate);
-          const cost = parseFloat(subscription.cost) || 0;
-          const frequency = subscription.frequency || "monthly";
-          const isActive = subscription.isActive; // Utiliser la propriété isActive directement
-
-          const monthlyCost =
-            frequency === "yearly"
-              ? cost / 12
-              : frequency === "quarterly"
-              ? cost / 3
-              : frequency === "weekly"
-              ? cost * 4
-              : cost;
-
-          // Calcul pour le mois actuel
-          if (isActive) {
-            if (
-              frequency === "monthly" &&
-              dueDate.getMonth() === currentMonth &&
-              dueDate.getFullYear() === currentYear
-            ) {
-              currentMonthExpenses += cost;
-            } else if (frequency !== "monthly") {
-              currentMonthExpenses += monthlyCost;
-            }
-            activeCount++;
-          }
-
-          // Calcul pour le mois précédent
-          const lastMonth = currentMonth === 0 ? 11 : currentMonth - 1;
-          const lastMonthYear = currentMonth === 0 ? currentYear - 1 : currentYear;
-
-          if (isActive) {
-            if (
-              frequency === "monthly" &&
-              dueDate.getMonth() === lastMonth &&
-              dueDate.getFullYear() === lastMonthYear
-            ) {
-              lastMonthExpenses += cost;
-            } else if (frequency !== "monthly") {
-              lastMonthExpenses += monthlyCost;
-            }
-          }
-
-          // Renouvellements à venir
-          if (dueDate >= currentDate && dueDate <= fifteenDaysFromNow) {
-            renewalsCount++;
-          }
+        setStats({
+          totalExpenses: currentMonthExpenses,
+          activeSubscriptions: activeCount,
+          potentialSavings: 0,
+          percentageChange: percentageChange.toFixed(1),
+          renewalsComing: renewalsCount,
+          loading: false,
         });
-
-        // Calcul du pourcentage de changement
-        let percentageChangeValue = 0;
-        if (lastMonthExpenses > 0) {
-          percentageChangeValue =
-            ((currentMonthExpenses - lastMonthExpenses) / lastMonthExpenses) * 100;
-        }
-
-        console.log("Statistiques calculées:", {
-          currentMonthExpenses,
-          lastMonthExpenses,
-          percentageChange: percentageChangeValue,
-          activeCount,
-          renewalsCount,
-        });
-
-        setTotalExpenses(currentMonthExpenses);
-        setActiveSubscriptions(activeCount);
-        setPotentialSavings(0);
-        setPercentageChange(percentageChangeValue.toFixed(1));
-        setRenewalsComing(renewalsCount);
-        setSubscriptions(subscriptionsArray);
-      } catch (error) {
-        console.error("Erreur détaillée:", error);
-        setTotalExpenses(0);
-        setActiveSubscriptions(0);
-        setPotentialSavings(0);
-        setPercentageChange(0);
-        setRenewalsComing(0);
-      } finally {
-        setLoading(false);
+      } catch {
+        setStats((prev) => ({ ...prev, loading: false }));
       }
     };
 
-    // Écouter les changements d'état d'authentification
     const unsubscribe = onAuthStateChanged(auth, (user) => {
-      if (user) {
-        console.log("Utilisateur authentifié:", user.uid);
-        fetchSubscriptions(user);
-      } else {
-        console.log("Aucun utilisateur connecté");
-        setLoading(false);
-      }
+      if (user) fetchSubscriptions(user);
+      else setStats((prev) => ({ ...prev, loading: false }));
     });
 
-    // Nettoyer l'écouteur lors du démontage du composant
     return () => unsubscribe();
   }, []);
 
@@ -147,26 +115,28 @@ const LittleCard = () => {
     {
       title: "Dépenses mensuelles",
       icon: <EuroIcon />,
-      number: loading ? "..." : `${totalExpenses.toFixed(2)} €`,
-      description: loading
+      number: stats.loading ? "..." : `${stats.totalExpenses.toFixed(2)} €`,
+      description: stats.loading
         ? "Chargement..."
-        : `${percentageChange > 0 ? "+" : ""}${percentageChange}% par rapport au mois dernier`,
+        : `${stats.percentageChange > 0 ? "+" : ""}${
+            stats.percentageChange
+          }% par rapport au mois dernier`,
     },
     {
       title: "Abonnements actifs",
       icon: <CreditCardIcon />,
-      number: loading ? "..." : `${activeSubscriptions}`,
-      description: loading
+      number: stats.loading ? "..." : `${stats.activeSubscriptions}`,
+      description: stats.loading
         ? "Chargement..."
-        : `${renewalsComing} renouvellement${
-            renewalsComing > 1 ? "s" : ""
+        : `${stats.renewalsComing} renouvellement${
+            stats.renewalsComing > 1 ? "s" : ""
           } à venir dans les 15 prochains jours`,
     },
     {
       title: "Economies potentielles",
       icon: <EuroIcon />,
-      number: loading ? "..." : `${potentialSavings.toFixed(2)} €`,
-      description: loading
+      number: stats.loading ? "..." : `${stats.potentialSavings.toFixed(2)} €`,
+      description: stats.loading
         ? "Chargement..."
         : "Suggestions de l'IA pour faire de l'économie à venir.",
     },

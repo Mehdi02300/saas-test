@@ -17,43 +17,35 @@ const Graphic = () => {
   });
 
   const isLargeScreen = useBreakpoint();
+  const margin = { top: 20, right: 40, bottom: 120, left: 45 };
+  const width = (isLargeScreen ? 430 : 310) - margin.left - margin.right;
+  const height = 400 - margin.top - margin.bottom;
 
   useEffect(() => {
     const fetchData = async (userId) => {
       try {
         const expenses = await getExpensesHistory(userId);
-        console.log("Données récupérées:", expenses);
-
-        const sortedData = expenses.sort((a, b) => new Date(a.date) - new Date(b.date));
-        setData(sortedData);
+        setData(expenses.sort((a, b) => new Date(a.date) - new Date(b.date)));
       } catch (error) {
-        console.log("Erreur récupération données:", error);
+        setData([]);
       }
     };
 
     const unsubscribe = onAuthStateChanged(auth, (user) => {
-      if (user) {
-        fetchData(user.uid);
-      }
+      if (user) fetchData(user.uid);
     });
 
     return () => unsubscribe();
   }, []);
 
-  // Ajustement des données pour inclure toujours le mois en cours et les mois les plus récents
-  const currentMonth = new Date().toLocaleString("fr-FR", { month: "long" });
-  const filteredData = data.slice(-1 * (isLargeScreen ? 5 : 3));
+  const filteredData = data.slice(-1 * 5);
 
   useEffect(() => {
     if (filteredData.length === 0) return;
-    console.log("Données pour le graphique:", filteredData);
-
-    const margin = { top: 30, right: 30, bottom: 40, left: 40 };
-    const width = 300 - margin.left - margin.right;
-    const height = 350 - margin.top - margin.bottom;
 
     d3.select(svgRef.current).selectAll("*").remove();
 
+    // Setup SVG
     const svg = d3
       .select(svgRef.current)
       .attr("width", width + margin.left + margin.right)
@@ -61,12 +53,12 @@ const Graphic = () => {
       .append("g")
       .attr("transform", `translate(${margin.left},${margin.top})`);
 
-    // Configuration des échelles
+    // Scales
     const xScale = d3
       .scalePoint()
       .domain(filteredData.map((d) => d.mois))
-      .range([0, width]) // Utiliser width au lieu de 300
-      .padding(0); // Mettre le padding à 0
+      .range([0, width])
+      .padding(0);
 
     const yScale = d3
       .scaleLinear()
@@ -74,7 +66,7 @@ const Graphic = () => {
       .nice()
       .range([height, 0]);
 
-    // Ajout du dégradé
+    // Gradient
     const gradient = svg
       .append("defs")
       .append("linearGradient")
@@ -82,41 +74,39 @@ const Graphic = () => {
       .attr("x1", "0%")
       .attr("y1", "100%")
       .attr("x2", "0%")
-      .attr("y2", "0%"); // Ajuste pour un dégradé vertical
+      .attr("y2", "0%");
     gradient.append("stop").attr("offset", "0%").attr("stop-color", "#5C6BC0");
     gradient.append("stop").attr("offset", "100%").attr("stop-color", "#EF6C00");
 
-    // Générateur de lignes
-    const lineGenerator = d3
+    // Line
+    const line = d3
       .line()
       .x((d) => xScale(d.mois))
       .y((d) => yScale(d.montant))
       .curve(d3.curveMonotoneX);
 
-    // Ligne du graphique
     svg
       .append("path")
       .datum(filteredData)
       .attr("class", "line")
-      .attr("d", lineGenerator)
+      .attr("d", line)
       .style("fill", "none")
       .style("stroke", "#2563eb")
       .style("stroke-width", 2);
 
-    // Générateur d'aire
-    const areaGenerator = d3
+    // Area
+    const area = d3
       .area()
       .x((d) => xScale(d.mois))
       .y0(height)
       .y1((d) => yScale(d.montant))
       .curve(d3.curveMonotoneX);
 
-    // Aire du graphique
     svg
       .append("path")
       .datum(filteredData)
       .attr("class", "area")
-      .attr("d", areaGenerator)
+      .attr("d", area)
       .style("fill", "url(#gradient)");
 
     // Axes
@@ -124,7 +114,7 @@ const Graphic = () => {
 
     svg.append("g").call(d3.axisLeft(yScale));
 
-    // Points interactifs
+    // Interactive dots
     svg
       .selectAll(".dot")
       .data(filteredData)
@@ -143,50 +133,40 @@ const Graphic = () => {
           value: d.montant,
         });
       })
-      .on("mouseout", () => {
-        setTooltip({ visible: false, svgX: 0, svgY: 0, value: 0 });
-      });
+      .on("mouseout", () => setTooltip({ visible: false, svgX: 0, svgY: 0, value: 0 }));
 
-    // Tooltip dans le SVG
+    // Tooltip
     if (tooltip.visible) {
-      svg
+      const tooltipGroup = svg
         .append("g")
         .attr("class", "tooltip")
-        .attr("transform", `translate(${tooltip.svgX},${tooltip.svgY})`)
+        .attr("transform", `translate(${tooltip.svgX},${tooltip.svgY})`);
+
+      const text = tooltipGroup
         .append("text")
         .attr("text-anchor", "middle")
         .attr("dy", "-10")
         .attr("fill", "white")
         .style("font-size", "12px")
-        .text(`${tooltip.value.toFixed(2)} €`)
-        .each(function () {
-          // Ajouter un rectangle de fond
-          const bbox = this.getBBox();
-          const padding = 4;
+        .text(`${tooltip.value.toFixed(2)} €`);
 
-          d3.select(this.parentNode)
-            .insert("rect", "text")
-            .attr("x", bbox.x - padding)
-            .attr("y", bbox.y - padding)
-            .attr("width", bbox.width + padding * 2)
-            .attr("height", bbox.height + padding * 2)
-            .attr("fill", "black")
-            .attr("rx", 4);
-        });
+      const bbox = text.node().getBBox();
+      const padding = 4;
+
+      tooltipGroup
+        .insert("rect", "text")
+        .attr("x", bbox.x - padding)
+        .attr("y", bbox.y - padding)
+        .attr("width", bbox.width + padding * 2)
+        .attr("height", bbox.height + padding * 2)
+        .attr("fill", "black")
+        .attr("rx", 4);
     }
-  }, [filteredData, tooltip]); // Dépendance à filteredData et tooltip
+  }, [filteredData, tooltip, width, height, margin]);
 
-  if (data.length === 0) {
+  if (!data?.length || data.every((d) => d.montant === 0)) {
     return (
-      <div className="p-5 lg:py-10 bg-n-7 rounded-xl h-[450px] flex items-center justify-center">
-        <p className="text-white">Chargement des données...</p>
-      </div>
-    );
-  }
-
-  if (!data || data.length === 0 || data.every((d) => d.montant === 0)) {
-    return (
-      <div className="p-5 bg-n-7 rounded-xl h-[450px] flex flex-col items-center justify-start">
+      <div className="p-5 bg-n-7 rounded-xl h-[400px] flex flex-col items-center justify-start">
         <h2 className="h4 text-center mb-5">Évolution des dépenses mensuelles</h2>
         <p className="text-white">Aucun abonnement trouvé.</p>
       </div>
@@ -194,7 +174,7 @@ const Graphic = () => {
   }
 
   return (
-    <div className="pr-5 py-5 bg-n-7 rounded-xl w-full h-[450px] relative flex flex-col items-center justify-center">
+    <div className="pr-5 py-5 bg-n-7 rounded-xl w-full h-[400px] relative flex flex-col items-center justify-center">
       <h2 className="h4 text-center">Évolution des dépenses mensuelles</h2>
       <svg ref={svgRef} className="max-w-full"></svg>
     </div>

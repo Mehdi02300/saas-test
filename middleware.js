@@ -1,16 +1,13 @@
 import { NextResponse } from "next/server";
 
 export async function middleware(request) {
-  // Vérifier le cookie de session
   const session = request.cookies.get("session")?.value;
 
   if (!session) {
-    console.log("Pas de session trouvée");
-    return NextResponse.redirect(new URL("/login", request.url));
+    return createRedirectResponse(request.url);
   }
 
   try {
-    // Vérifier la validité du token
     const response = await fetch(
       `https://identitytoolkit.googleapis.com/v1/accounts:lookup?key=${process.env.NEXT_PUBLIC_FIREBASE_API_KEY}`,
       {
@@ -23,23 +20,22 @@ export async function middleware(request) {
     );
 
     if (!response.ok) {
-      console.log("Token invalide");
-      // Créer une réponse de redirection
-      const response = NextResponse.redirect(new URL("/login", request.url));
-      // Supprimer le cookie
-      response.cookies.delete("session");
-      return response;
+      return createRedirectResponse(request.url, true);
     }
 
     return NextResponse.next();
-  } catch (error) {
-    console.log("Erreur de vérification:", error);
-    // Créer une réponse de redirection
-    const response = NextResponse.redirect(new URL("/login", request.url));
-    // Supprimer le cookie
-    response.cookies.delete("session");
-    return response;
+  } catch {
+    return createRedirectResponse(request.url, true);
   }
+}
+
+// Helper function to create redirect response
+function createRedirectResponse(requestUrl, deleteCookie = false) {
+  const response = NextResponse.redirect(new URL("/login", requestUrl));
+  if (deleteCookie) {
+    response.cookies.delete("session");
+  }
+  return response;
 }
 
 export const config = {

@@ -5,33 +5,25 @@ import { cookies } from "next/headers";
 export async function getUpcomingSubscriptions() {
   try {
     const session = cookies().get("session")?.value;
-    if (!session) {
-      console.log("Pas de session");
-      return [];
-    }
+    if (!session) return [];
 
-    // Vérifier le token
+    // Verify Firebase token
     const response = await fetch(
       `https://identitytoolkit.googleapis.com/v1/accounts:lookup?key=${process.env.NEXT_PUBLIC_FIREBASE_API_KEY}`,
       {
         method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-        },
+        headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ idToken: session }),
       }
     );
 
-    if (!response.ok) {
-      return [];
-    }
+    if (!response.ok) return [];
 
-    const userData = await response.json();
-    const userId = userData.users[0].localId;
-
+    const {
+      users: [{ localId: userId }],
+    } = await response.json();
     return { userId };
-  } catch (error) {
-    console.error("Erreur:", error);
+  } catch {
     return [];
   }
 }

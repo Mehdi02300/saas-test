@@ -1,4 +1,3 @@
-// app/dashboard/page.js
 import Container from "@/components/Container";
 import BigCard from "@/components/dashboard/BigCard";
 import Header from "@/components/dashboard/Header";

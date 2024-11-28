@@ -1,23 +1,33 @@
+"use client";
 import { useRouter } from "next/navigation";
 import { useState } from "react";
 import { createUserWithEmailAndPassword } from "firebase/auth";
 import { auth } from "@/lib/firebaseConfig";
 
 const FormSignUp = () => {
-  const [email, setEmail] = useState("");
-  const [password, setPassword] = useState("");
+  const [form, setForm] = useState({ email: "", password: "" });
   const [error, setError] = useState("");
-
+  const [isLoading, setIsLoading] = useState(false);
   const router = useRouter();
+
+  const errorMessages = {
+    "auth/email-already-in-use": "Cet email est déjà utilisé",
+    "auth/weak-password": "Le mot de passe doit contenir au moins 6 caractères",
+    "auth/invalid-email": "Email invalide",
+  };
 
   const handleSignup = async (e) => {
     e.preventDefault();
     setError("");
+    setIsLoading(true);
+
     try {
-      await createUserWithEmailAndPassword(auth, email, password);
+      await createUserWithEmailAndPassword(auth, form.email, form.password);
       router.push("/dashboard");
     } catch (err) {
-      setError(err.message);
+      setError(errorMessages[err.code] || "Une erreur est survenue");
+    } finally {
+      setIsLoading(false);
     }
   };
 
@@ -44,8 +54,11 @@ const FormSignUp = () => {
           </svg>
           Retour
         </button>
+
         <h2 className="mb-4 text-2xl font-bold text-center">Inscription</h2>
+
         {error && <p className="mb-4 text-sm text-red-500 bg-red-100 p-2 rounded">{error}</p>}
+
         <div className="lg:space-y-10">
           <div className="mb-4">
             <label htmlFor="email" className="block mb-1 text-md">
@@ -54,13 +67,15 @@ const FormSignUp = () => {
             <input
               type="email"
               id="email"
-              value={email}
-              onChange={(e) => setEmail(e.target.value)}
+              value={form.email}
+              onChange={(e) => setForm({ ...form, email: e.target.value })}
               className="w-full px-5 py-3 border rounded shadow-sm"
               placeholder="Entrez votre email"
               required
+              disabled={isLoading}
             />
           </div>
+
           <div className="mb-4">
             <label htmlFor="password" className="block mb-1 text-md">
               Mot de passe
@@ -68,18 +83,21 @@ const FormSignUp = () => {
             <input
               type="password"
               id="password"
-              value={password}
-              onChange={(e) => setPassword(e.target.value)}
+              value={form.password}
+              onChange={(e) => setForm({ ...form, password: e.target.value })}
               className="w-full px-5 py-3 border rounded shadow-sm"
               placeholder="Entrez votre mot de passe"
               required
+              disabled={isLoading}
             />
           </div>
+
           <button
             type="submit"
-            className="w-full px-5 py-3 text-white bg-n-9 rounded hover:bg-n-7 animate"
+            disabled={isLoading}
+            className="w-full px-5 py-3 text-white bg-n-9 rounded hover:bg-n-7 animate disabled:opacity-50"
           >
-            S'inscrire
+            {isLoading ? "Inscription..." : "S'inscrire"}
           </button>
         </div>
       </form>
