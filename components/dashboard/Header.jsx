@@ -14,7 +14,7 @@ const Header = () => {
 
       <Button
         theme="primary"
-        className="flex flex-col md:flex-row items-center justify-center gap-1 lg:gap-3"
+        className="text-sm flex flex-col md:flex-row items-center justify-center gap-1 lg:gap-3"
         onClick={() => setIsModalOpen(true)}
       >
         <PlusIcon /> Nouvel abonnement

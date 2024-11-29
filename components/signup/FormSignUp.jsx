@@ -3,6 +3,7 @@ import { useRouter } from "next/navigation";
 import { useState } from "react";
 import { createUserWithEmailAndPassword } from "firebase/auth";
 import { auth } from "@/lib/firebaseConfig";
+import Link from "next/link";
 
 const FormSignUp = () => {
   const [form, setForm] = useState({ email: "", password: "" });
@@ -35,7 +36,7 @@ const FormSignUp = () => {
     <div className="flex items-center justify-center h-screen">
       <form
         onSubmit={handleSignup}
-        className="relative p-6 lg:p-12 bg-n-6 rounded shadow-lg lg:rounded-xl w-80 lg:h-[450px] lg:w-[500px]"
+        className="relative p-6 lg:p-12 bg-n-6 rounded shadow-lg lg:rounded-xl w-80 lg:w-[500px]"
       >
         <button
           type="button"
@@ -55,11 +56,11 @@ const FormSignUp = () => {
           Retour
         </button>
 
-        <h2 className="mb-4 text-2xl font-bold text-center">Inscription</h2>
+        <h2 className="h2 text-center">Inscription</h2>
 
         {error && <p className="mb-4 text-sm text-red-500 bg-red-100 p-2 rounded">{error}</p>}
 
-        <div className="lg:space-y-10">
+        <div className="lg:space-y-8">
           <div className="mb-4">
             <label htmlFor="email" className="block mb-1 text-md">
               Email
@@ -95,10 +96,20 @@ const FormSignUp = () => {
           <button
             type="submit"
             disabled={isLoading}
-            className="w-full px-5 py-3 text-white bg-n-9 rounded hover:bg-n-7 animate disabled:opacity-50"
+            className="w-full px-5 py-3 text-white bg-n-9 rounded-xl hover:bg-n-7 animate disabled:opacity-50"
           >
             {isLoading ? "Inscription..." : "S'inscrire"}
           </button>
+          <div className="w-full flex items-center gap-2">
+            <div className="flex-1 border-b border-b-n-8"></div>
+            <div className="text-center">ou</div>
+            <div className="flex-1 border-b border-b-n-8"></div>
+          </div>
+          <Link href="/login">
+            <button className="w-full px-5 py-3 lg:mt-8 text-white bg-n-9 rounded-xl hover:bg-n-7 animate">
+              Se connecter
+            </button>
+          </Link>
         </div>
       </form>
     </div>

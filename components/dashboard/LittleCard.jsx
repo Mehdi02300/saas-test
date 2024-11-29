@@ -1,10 +1,10 @@
 "use client";
-
 import React, { useEffect, useState } from "react";
-import { collection, getDocs, query, where } from "firebase/firestore";
+import { collection, query, where, getDocs } from "firebase/firestore";
 import { db, auth } from "@/lib/firebaseConfig";
 import { CreditCardIcon, EuroIcon } from "lucide-react";
 import { onAuthStateChanged } from "firebase/auth";
+import { updateSubscriptionDates } from "@/actions/updateDueDates.action";
 
 const LittleCard = () => {
   const [stats, setStats] = useState({
@@ -18,12 +18,12 @@ const LittleCard = () => {
 
   useEffect(() => {
     const calculateStats = (subscriptions) => {
-      const now = new Date(); // Utiliser une nouvelle date
-      const currentMonth = now.getMonth();
-      const currentYear = now.getFullYear();
+      const currentDate = new Date();
+      const currentMonth = currentDate.getMonth();
+      const currentYear = currentDate.getFullYear();
       const lastMonth = currentMonth === 0 ? 11 : currentMonth - 1;
       const lastMonthYear = currentMonth === 0 ? currentYear - 1 : currentYear;
-      const fifteenDaysFromNow = new Date(now); // Créer une nouvelle date basée sur now
+      const fifteenDaysFromNow = new Date(currentDate);
       fifteenDaysFromNow.setDate(fifteenDaysFromNow.getDate() + 15);
 
       return subscriptions.reduce(
@@ -34,7 +34,6 @@ const LittleCard = () => {
           const cost = parseFloat(sub.cost) || 0;
           const monthlyCost = sub.frequency === "yearly" ? cost / 12 : cost;
 
-          // Current month expenses
           if (
             sub.frequency === "monthly" &&
             dueDate.getMonth() === currentMonth &&
@@ -45,7 +44,6 @@ const LittleCard = () => {
             acc.currentMonthExpenses += monthlyCost;
           }
 
-          // Last month expenses
           if (
             sub.frequency === "monthly" &&
             dueDate.getMonth() === lastMonth &&
@@ -56,9 +54,8 @@ const LittleCard = () => {
             acc.lastMonthExpenses += monthlyCost;
           }
 
-          // Active subscriptions and renewals
           acc.activeCount++;
-          if (dueDate >= now && dueDate <= fifteenDaysFromNow) {
+          if (dueDate >= currentDate && dueDate <= fifteenDaysFromNow) {
             acc.renewalsCount++;
           }
 
@@ -81,6 +78,8 @@ const LittleCard = () => {
           id: doc.id,
           ...doc.data(),
         }));
+
+        await updateSubscriptionDates(subscriptions);
 
         const { currentMonthExpenses, lastMonthExpenses, activeCount, renewalsCount } =
           calculateStats(subscriptions);

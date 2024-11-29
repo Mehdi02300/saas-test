@@ -13,7 +13,7 @@ const Pricing = () => {
           {pricing.map((price, index) => (
             <div
               key={index}
-              className="relative bg-n-7 rounded-xl lg:rounded-2xl p-6 h-[470px] lg:h-[600px] lg:p-12 text-center lg:text-start"
+              className="relative bg-n-7 rounded-xl lg:rounded-2xl p-6 h-[490px] md:[550px] lg:h-[600px] lg:p-12 text-center lg:text-start"
             >
               <div className="text-caption-1 text-n-5 uppercase">{price.plan}</div>
               <div className="space-y-3">

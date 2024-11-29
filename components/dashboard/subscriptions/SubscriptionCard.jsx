@@ -2,7 +2,7 @@ import { useState } from "react";
 import DeleteModal from "./DeleteModal";
 import UpdateModal from "./UpdateModal";
 
-const SubscriptionCard = ({ subscription, onDelete }) => {
+const SubscriptionCard = ({ subscription }) => {
   const [showDeleteModal, setShowDeleteModal] = useState(false);
   const [showUpdateModal, setShowUpdateModal] = useState(false);
 

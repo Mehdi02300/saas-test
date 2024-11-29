@@ -1,4 +1,5 @@
 "use client";
+
 import { useState, useEffect } from "react";
 import { collection, query, where, getDocs } from "firebase/firestore";
 import { db, auth } from "@/lib/firebaseConfig";
@@ -59,8 +60,8 @@ const SubscriptionsPage = () => {
           return a.serviceName.localeCompare(b.serviceName);
         case "cost":
           return b.cost - a.cost;
-        default:
-          return new Date(b.dueDate) - new Date(a.dueDate);
+        default: // "dueDate"
+          return new Date(a.dueDate) - new Date(b.dueDate);
       }
     });
 
@@ -74,12 +75,12 @@ const SubscriptionsPage = () => {
 
   return (
     <div className="px-5 lg:px-10">
-      <div className="flex justify-between items-center mb-5">
+      <div className="flex justify-between gap-1 items-center mb-5">
         <h1 className="h2">Mes Abonnements</h1>
 
         <Button
           theme="primary"
-          className="flex flex-col md:flex-row items-center justify-center gap-1 lg:gap-3"
+          className="text-xs flex flex-col md:flex-row items-center justify-center gap-1 lg:gap-3"
           onClick={() => setIsModalOpen(true)}
         >
           <PlusIcon /> Nouvel abonnement

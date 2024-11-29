@@ -10,15 +10,15 @@ const Footer = () => {
         }
       >
         <div className="flex lg:flex-col gap-2 lg:gap-6">
-          <a href="#/" target="_blank" rel="noreferrer" className="flex items-center gap-1">
+          <a href="#/" target="_blank" rel="noreferrer" className="flex gap-1">
             <InstagramIcon />
-            <span className="hidden lg:block">Instagram</span>
+            <div className="hidden lg:block">Instagram</div>
           </a>
-          <a href="#/" target="_blank" rel="noreferrer" className="flex items-center gap-1">
+          <a href="#/" target="_blank" rel="noreferrer" className="flex gap-1">
             <LinkedinIcon />
             <span className="hidden lg:block">LinkedIn</span>
           </a>
-          <a href="#/" target="_blank" rel="noreferrer" className="flex items-center gap-1">
+          <a href="#/" target="_blank" rel="noreferrer" className="flex gap-1">
             <FacebookIcon />
             <span className="hidden lg:block">Facebook</span>
           </a>

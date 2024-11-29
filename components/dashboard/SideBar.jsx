@@ -25,7 +25,7 @@ const SideBar = () => {
       const result = await handleLogout();
 
       if (result.success) {
-        router.push("/login");
+        router.push("/");
         router.refresh();
       }
     } finally {
